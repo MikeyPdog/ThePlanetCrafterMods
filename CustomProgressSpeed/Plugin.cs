@@ -9,7 +9,7 @@ using BepInEx.Logging;
 
 namespace CustomProgressSpeed
 {
-    [BepInPlugin("mikeypdog.theplanetcraftermods.customprogressspeed", "Custom progress speed", "1.0.1.0")]
+    [BepInPlugin("mikeypdog.theplanetcraftermods.customprogressspeed", "Custom progress speed", "1.0.1.1")]
     public class Plugin : BaseUnityPlugin
     {
         static ManualLogSource logger;
@@ -72,6 +72,10 @@ namespace CustomProgressSpeed
         private static void MultiplyGeneration(Dictionary<DataConfig.WorldUnitType, float> unitsGenerations, DataConfig.WorldUnitType unit, float mult)
         {
             if (!unitsGenerations.ContainsKey(unit))
+            {
+                return;
+            }
+            if (unitsGenerations[unit] < 0)
             {
                 return;
             }
