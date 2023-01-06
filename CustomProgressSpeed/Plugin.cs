@@ -1,15 +1,19 @@
-using BepInEx;
+﻿using BepInEx;
 using MijuTools;
 using SpaceCraft;
 using HarmonyLib;
 using BepInEx.Configuration;
 using System.Linq;
+using System.Collections.Generic;
+using BepInEx.Logging;
 
 namespace CustomProgressSpeed
 {
-    [BepInPlugin("mikeypdog.theplanetcraftermods.customprogressspeed", "Custom progress speed", "1.0.0.0")]
+    [BepInPlugin("mikeypdog.theplanetcraftermods.customprogressspeed", "Custom progress speed", "1.0.1.0")]
     public class Plugin : BaseUnityPlugin
     {
+        static ManualLogSource logger;
+
         private static ConfigEntry<float> oxygenMultiplier;
         private static ConfigEntry<float> energyMultiplier;
         private static ConfigEntry<float> heatMultiplier;
@@ -21,7 +25,8 @@ namespace CustomProgressSpeed
         private void Awake()
         {
             // Plugin startup logic
-            Logger.LogInfo($"Plugin is loaded!");
+            Logger.LogInfo($"Plugin loading..");
+            logger = Logger;
 
             oxygenMultiplier = Config.Bind("GlobalMultipliers", "Oxygen", 0.3f, "The global multiplier of all oxygen generation.");
             energyMultiplier = Config.Bind("GlobalMultipliers", "Energy", 0.3f, "The global multiplier of all energy generation.");
@@ -32,48 +37,45 @@ namespace CustomProgressSpeed
             insectsMultiplier = Config.Bind("GlobalMultipliers", "Insects", 0.3f, "The global multiplier of all insects generation.");
 
             Harmony.CreateAndPatchAll(typeof(Plugin));
+            Logger.LogInfo($"Plugin is loaded!");
         }
 
         [HarmonyPostfix]
-        [HarmonyPatch(typeof(WorldUnit), "SetIncreaseAndDecreaseForWorldObjects")]
-        static void WorldUnit_SetIncreaseAndDecreaseForWorldObjects(bool __result, ref float ___increaseValuePerSec, DataConfig.WorldUnitType ___unitType)
+        [HarmonyPatch(typeof(StaticDataHandler), "LoadStaticData")]
+        static void StaticDataHandler_LoadStaticData()
         {
-            // __result is true only if the world unit generation just changed and has been recalculated
-            if (!__result)
+            var groups = GroupsHandler.GetGroupsConstructible();
+            foreach (var g in groups)
+            {
+                // Use reflection to get the private field unitsGenerations
+                var unitsGenerations = g
+                        .GetType()
+                        .GetField("unitsGenerations", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                        .GetValue(g) as Dictionary<DataConfig.WorldUnitType, float>;
+
+                if (unitsGenerations == null)
+                {
+                    return;
+                }
+
+                // Multiply each value by the config value
+                MultiplyGeneration(unitsGenerations, DataConfig.WorldUnitType.Oxygen, oxygenMultiplier.Value);
+                MultiplyGeneration(unitsGenerations, DataConfig.WorldUnitType.Energy, energyMultiplier.Value);
+                MultiplyGeneration(unitsGenerations, DataConfig.WorldUnitType.Heat, heatMultiplier.Value);
+                MultiplyGeneration(unitsGenerations, DataConfig.WorldUnitType.Pressure, pressureMultiplier.Value);
+                MultiplyGeneration(unitsGenerations, DataConfig.WorldUnitType.Biomass, biomassMultiplier.Value);
+                MultiplyGeneration(unitsGenerations, DataConfig.WorldUnitType.Plants, plantsMultiplier.Value);
+                MultiplyGeneration(unitsGenerations, DataConfig.WorldUnitType.Insects, insectsMultiplier.Value);
+            }
+        }
+
+        private static void MultiplyGeneration(Dictionary<DataConfig.WorldUnitType, float> unitsGenerations, DataConfig.WorldUnitType unit, float mult)
+        {
+            if (!unitsGenerations.ContainsKey(unit))
             {
                 return;
             }
-
-            switch (___unitType)
-            {
-                case DataConfig.WorldUnitType.Null:
-                case DataConfig.WorldUnitType.Terraformation:
-                case DataConfig.WorldUnitType.Animals:
-                    break;
-                case DataConfig.WorldUnitType.Oxygen:
-                    ___increaseValuePerSec *= oxygenMultiplier.Value;
-                    break;
-                case DataConfig.WorldUnitType.Energy:
-                    ___increaseValuePerSec *= energyMultiplier.Value;
-                    break;
-                case DataConfig.WorldUnitType.Heat:
-                    ___increaseValuePerSec *= heatMultiplier.Value;
-                    break;
-                case DataConfig.WorldUnitType.Pressure:
-                    ___increaseValuePerSec *= pressureMultiplier.Value;
-                    break;
-                case DataConfig.WorldUnitType.Biomass:
-                    ___increaseValuePerSec *= biomassMultiplier.Value;
-                    break;
-                case DataConfig.WorldUnitType.Plants:
-                    ___increaseValuePerSec *= plantsMultiplier.Value;
-                    break;
-                case DataConfig.WorldUnitType.Insects:
-                    ___increaseValuePerSec *= insectsMultiplier.Value;
-                    break;
-                default:
-                    break;
-            }
+            unitsGenerations[unit] *= mult;
         }
     }
 }

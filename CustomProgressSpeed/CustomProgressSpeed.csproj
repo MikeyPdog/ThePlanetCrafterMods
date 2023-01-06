@@ -3,8 +3,8 @@
   <PropertyGroup>
     <TargetFramework>net462</TargetFramework>
     <AssemblyName>CustomProgressSpeed</AssemblyName>
-    <Description>Custom progress speed - Planet Crafter mod by mikeypdog</Description>
-    <Version>1.0.0.3</Version>
+    <Description>Custom progress speed</Description>
+    <Version>1.0.1.0</Version>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <LangVersion>latest</LangVersion>
     <Platforms>AnyCPU</Platforms>
